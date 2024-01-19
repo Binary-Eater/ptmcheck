@@ -1,0 +1,18 @@
+;;; Directory Local Variables
+;;; For more information see (info "(emacs) Directory Variables")
+
+((c++-mode . ((clang-format-style . "file")
+              (tab-width . 8)
+              (c-basic-offset . 8)
+              (indent-tabs-mode . t)))
+ (c-mode . ((clang-format-style . "file")
+            (tab-width . 8)
+            (c-basic-offset . 8)
+            (indent-tabs-mode . t)))
+ (c-or-c++-mode . ((clang-format-style . "file")
+                   (tab-width . 8)
+                   (c-basic-offset . 8)
+                   (indent-tabs-mode . t)))
+ (sh-mode . ((tab-width . 8)
+             (sh-basic-offset . 8)
+             (indent-tabs-mode . t))))

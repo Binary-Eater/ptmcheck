@@ -1,0 +1,157 @@
+#+STARTUP: showall
+#+STARTUP: indent
+
+* ptmcheck: A simple tool for checking if a host system supports Precision Time Measurement
+
+** What is Precision Time Measurement?
+
+Precision Time Measurement (PTM) is a PCI Express 3.0 feature that measures the
+time over the PCIe bus and provides synchronization messages to alert host
+programs about changes in the time it takes for data to travel across to PCIe
+bus. This feature is especially useful since data transfers between device and
+host are not symmetric in terms of time taken for transfer from host to device
+versus device to host.
+
+** The purpose of this tool
+
+When first trying to understand whether a system supports PTM or not, I had a
+look at the [[https://www.opencompute.org/w/index.php?title=PTM_Readiness][Open Compute Platform page]] related to this feature. However, I found
+inaccuracies in the page and was not confident in the completeness of the page's
+information.
+
+The page lists that the following CPUs are supported.
+
++ Intel Core, Gen 11 (Rocket Lake)
++ Intel Core, Gen 12 (Alder Lake)
++ Intel Core, Gen 13 (Raptor Lake)
+
+This listing is inaccurate though in that Intel Gen 11 is Tiger Lake, Intel Gen
+12 is Alder Lake, and Intel Gen 13 and 14 are Raptor Lake.
+
+My laptop has a Tiger Lake processor, so I was unsure whether or not it would
+actually support PTM. Luckily PTM is an extended PCI capability, so whether it
+is supported or not can be checked by querying the capabilities of the PCI
+bridge associated with my host CPU by using pci sysfs nodes. The program uses
+pciutils to wrap the work of these sysfs node queries.
+
+I was able to determine that my laptop did indeed support PTM using this tool.
+
+#+BEGIN_SRC sh
+sudo ./ptmcheck 
+0000:00:01.1 vendor=8086 device=9a05 class=0604 irq=0 (pin 2) base0=0 (Device 9a05)
+0000:00:01.0 vendor=8086 device=9a01 class=0604 irq=0 (pin 1) base0=0 (11th Gen Core Processor PCIe Controller #1)
+0000:00:1c.0 vendor=8086 device=43be class=0604 irq=0 (pin 3) base0=0 (Device 43be)
+The above bridge devices reported having the PTM PCI capability
+Host system appears to support Precision Time Measurement
+#+END_SRC
+
+The tool only checks the capabilities of bridges to avoid conflating PCI device
+support with host support for PTM.
+
+#+BEGIN_SRC sh
+sudo lspci -s 0000:00:01 -v
+00:01.0 PCI bridge: Intel Corporation 11th Gen Core Processor PCIe Controller #1 (rev 05) (prog-if 00 [Normal decode])
+	Subsystem: Dell Device 0a5e
+	Flags: bus master, fast devsel, latency 0, IRQ 126
+	Bus: primary=00, secondary=01, subordinate=01, sec-latency=0
+	I/O behind bridge: 3000-3fff [size=4K] [16-bit]
+	Memory behind bridge: a9000000-aa0fffff [size=17M] [32-bit]
+	Prefetchable memory behind bridge: 6000000000-6201ffffff [size=8224M] [32-bit]
+	Capabilities: [40] Express Root Port (Slot+), MSI 00
+	Capabilities: [80] MSI: Enable+ Count=1/1 Maskable- 64bit-
+	Capabilities: [90] Subsystem: Dell Device 0a5e
+	Capabilities: [a0] Power Management version 3
+	Capabilities: [100] Advanced Error Reporting
+	Capabilities: [220] Access Control Services
+	Capabilities: [200] L1 PM Substates
+	Capabilities: [150] Precision Time Measurement
+	Capabilities: [280] Virtual Channel
+	Capabilities: [a00] Downstream Port Containment
+	Capabilities: [a30] Secondary PCI Express
+	Capabilities: [a90] Data Link Feature <?>
+	Capabilities: [a9c] Physical Layer 16.0 GT/s <?>
+	Capabilities: [edc] Lane Margining at the Receiver <?>
+	Kernel driver in use: pcieport
+
+00:01.1 PCI bridge: Intel Corporation Device 9a05 (rev 05) (prog-if 00 [Normal decode])
+	Subsystem: Dell Device 0a5e
+	Flags: bus master, fast devsel, latency 0, IRQ 127
+	Bus: primary=00, secondary=02, subordinate=02, sec-latency=0
+	I/O behind bridge: [disabled] [16-bit]
+	Memory behind bridge: aa200000-aa2fffff [size=1M] [32-bit]
+	Prefetchable memory behind bridge: [disabled] [64-bit]
+	Capabilities: [40] Express Root Port (Slot+), MSI 00
+	Capabilities: [80] MSI: Enable+ Count=1/1 Maskable- 64bit-
+	Capabilities: [90] Subsystem: Dell Device 0a5e
+	Capabilities: [a0] Power Management version 3
+	Capabilities: [100] Advanced Error Reporting
+	Capabilities: [220] Access Control Services
+	Capabilities: [200] L1 PM Substates
+	Capabilities: [150] Precision Time Measurement
+	Capabilities: [280] Virtual Channel
+	Capabilities: [a00] Downstream Port Containment
+	Capabilities: [a30] Secondary PCI Express
+	Capabilities: [a90] Data Link Feature <?>
+	Capabilities: [a9c] Physical Layer 16.0 GT/s <?>
+	Capabilities: [edc] Lane Margining at the Receiver <?>
+	Kernel driver in use: pcieport
+
+sudo lspci -s 0000:00:1c -v
+00:1c.0 PCI bridge: Intel Corporation Device 43be (rev 11) (prog-if 00 [Normal decode])
+	Subsystem: Dell Device 0a5e
+	Flags: bus master, fast devsel, latency 0, IRQ 132
+	Bus: primary=00, secondary=ab, subordinate=ab, sec-latency=0
+	I/O behind bridge: [disabled] [16-bit]
+	Memory behind bridge: aa100000-aa1fffff [size=1M] [32-bit]
+	Prefetchable memory behind bridge: [disabled] [64-bit]
+	Capabilities: [40] Express Root Port (Slot+), MSI 00
+	Capabilities: [80] MSI: Enable+ Count=1/1 Maskable- 64bit-
+	Capabilities: [90] Subsystem: Dell Device 0a5e
+	Capabilities: [a0] Power Management version 3
+	Capabilities: [100] Advanced Error Reporting
+	Capabilities: [220] Access Control Services
+	Capabilities: [150] Precision Time Measurement
+	Capabilities: [200] L1 PM Substates
+	Capabilities: [a30] Secondary PCI Express
+	Capabilities: [a00] Downstream Port Containment
+	Kernel driver in use: pcieport
+#+END_SRC
+
+** Building and using ptmcheck
+
+The only prerequisites for building ~ptmcheck~ are ~pciutils~, a C toolchain
+(defaults to ~gcc~ but can be overridden using ~CC~), and GNU ~make~.
+
+*** Building ptmcheck
+
+To generate the ~ptmcheck~ binary, simply run ~make~. Use ~make clean~ to clean
+up build artifacts in the project directory.
+
+*** ptmcheck usage
+
+~ptmcheck~ takes no arguments and requires elevated privileges (which it checks for).
+
+An example of ~ptmcheck~ when used without elevated privileges.
+
+#+BEGIN_SRC sh
+./ptmcheck
+Need to run program with elevated privileges!
+#+END_SRC
+
+An example of ~ptmcheck~ output when run on a system without PTM support.
+
+#+BEGIN_SRC sh
+sudo ./ptmcheck
+Host system has no bridges that reported the PTM PCI capability
+#+END_SRC
+
+An example of ~ptmcheck~ output when run on a system with PTM support.
+
+#+BEGIN_SRC sh
+sudo ./ptmcheck
+0000:00:01.1 vendor=8086 device=9a05 class=0604 irq=0 (pin 2) base0=0 (Device 9a05)
+0000:00:01.0 vendor=8086 device=9a01 class=0604 irq=0 (pin 1) base0=0 (11th Gen Core Processor PCIe Controller #1)
+0000:00:1c.0 vendor=8086 device=43be class=0604 irq=0 (pin 3) base0=0 (Device 43be)
+The above bridge devices reported having the PTM PCI capability
+Host system appears to support Precision Time Measurement
+#+END_SRC
